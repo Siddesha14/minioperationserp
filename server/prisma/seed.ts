@@ -141,6 +141,18 @@ async function main() {
       batchNumber: "BATCH-001",
     },
   });
+  const customer = await prisma.customer.upsert({
+  where: {
+    id: 1,
+  },
+  update: {},
+  create: {
+    name: "ABC Technologies",
+    email: "contact@abctech.com",
+    phone: "9876543210",
+  },
+});
+
     console.log("Seed completed successfully.");
   console.log("");
   console.log("Test accounts:");
@@ -152,6 +164,7 @@ async function main() {
   console.log(`Item: ${laptop.name} (${laptop.sku})`);
   console.log(`Laptop Batch ID: ${laptopBatch.id}`);
   console.log(`Monitor: ${monitor.name} (${monitor.sku})`);
+console.log(`Customer: ${customer.name} (ID: ${customer.id})`); 
   console.log(`Monitor Batch ID: ${monitorBatch.id}`);
 }
 

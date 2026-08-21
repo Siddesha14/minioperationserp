@@ -5,6 +5,7 @@ import authRoutes from "./auth/auth.routes.js";
 import inventoryRoutes from "./inventory/inventory.routes.js";
 import workOrderRoutes from "./workorders/workorder.routes.js";
 import transferRoutes from "./transfers/transfer.routes.js";
+import orderRoutes from "./orders/order.routes.js";
 
 const app = express();
 
@@ -23,6 +24,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/inventory", inventoryRoutes);
 app.use("/api/work-orders", workOrderRoutes);
 app.use("/api/transfers", transferRoutes);
+app.use("/api/orders", orderRoutes);
 
 app.use((_req, res) => {
   res.status(404).json({

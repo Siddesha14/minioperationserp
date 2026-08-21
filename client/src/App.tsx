@@ -5,6 +5,8 @@ import AppLayout from "./layouts/AppLayout";
 import Login from "./pages/auth/Login";
 import Inventory from "./pages/inventory/Inventory";
 import Orders from "./pages/orders/Orders";
+import WorkOrders from "./pages/workorders/WorkOrders";
+import Transfers from "./pages/transfers/Transfers";
 
 import { getDashboardSummary } from "./api/dashboard";
 import type { DashboardSummary } from "./api/dashboard";
@@ -264,21 +266,7 @@ function MiniStat({
 
 
 
-function WorkOrders() {
-  return (
-    <h1 className="text-2xl font-bold text-slate-800">
-      Work Orders
-    </h1>
-  );
-}
 
-function Transfers() {
-  return (
-    <h1 className="text-2xl font-bold text-slate-800">
-      Transfers
-    </h1>
-  );
-}
 
 export default function App() {
   return (

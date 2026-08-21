@@ -4,11 +4,14 @@ import {
   getOrders,
   getOrderById,
   reserveOrder,
+  cancelOrder,
+  completeorder,
 } from "./order.controller.js";
 import {
   authenticate,
   authorize,
 } from "../middleware/auth.middleware.js";
+
 
 const router = Router();
 
@@ -17,6 +20,18 @@ router.post(
   authenticate,
   authorize("SALES", "ADMIN"),
   createOrder,
+);
+router.patch(
+  "/:id/cancel",
+  authenticate,
+  authorize("SALES", "ADMIN"),
+  cancelOrder,
+);
+router.patch(
+  "/:id/complete",
+  authenticate,
+  authorize("SALES", "ADMIN"),
+  completeorder,
 );
 
 router.get(

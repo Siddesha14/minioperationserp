@@ -152,6 +152,54 @@ async function main() {
     phone: "9876543210",
   },
 });
+const bangaloreLaptopInventory = await prisma.inventory.upsert({
+  where: {
+    itemId_locationId_batchId: {
+      itemId: laptop.id,
+      locationId: bangalore.id,
+      batchId: laptopBatch.id,
+    },
+  },
+  update: {
+    physicalQuantity: 70,
+    reservedQuantity: 0,
+  },
+  create: {
+    itemId: laptop.id,
+    locationId: bangalore.id,
+    batchId: laptopBatch.id,
+    physicalQuantity: 70,
+    reservedQuantity: 0,
+  },
+});
+
+const mumbaiLaptopInventory = await prisma.inventory.upsert({
+  where: {
+    itemId_locationId_batchId: {
+      itemId: laptop.id,
+      locationId: mumbai.id,
+      batchId: laptopBatch.id,
+    },
+  },
+  update: {
+    physicalQuantity: 30,
+    reservedQuantity: 0,
+  },
+  create: {
+    itemId: laptop.id,
+    locationId: mumbai.id,
+    batchId: laptopBatch.id,
+    physicalQuantity: 30,
+    reservedQuantity: 0,
+  },
+});
+
+console.log(
+  `Bangalore Laptop Inventory: ${bangaloreLaptopInventory.physicalQuantity}`,
+);
+console.log(
+  `Mumbai Laptop Inventory: ${mumbaiLaptopInventory.physicalQuantity}`,
+);
 
     console.log("Seed completed successfully.");
   console.log("");

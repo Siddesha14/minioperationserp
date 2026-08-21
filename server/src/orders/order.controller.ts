@@ -210,6 +210,142 @@ export async function getOrderById(
     });
   }
 }
+export async function cancelOrder(
+  req: Request,
+  res: Response,
+) {
+  try {
+    const orderId = Number(req.params.id);
+
+    if (!Number.isInteger(orderId) || orderId <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid order ID",
+      });
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      const order = await tx.customerOrder.findUnique({
+        where: { id: orderId },
+        include: {
+          items: {
+            include: {
+              reservations: true,
+            },
+          },
+        },
+      });
+
+      if (!order) {
+        throw new Error("ORDER_NOT_FOUND");
+      }
+
+      if (order.status !== "RESERVED") {
+        throw new Error("INVALID_ORDER_STATUS");
+      }
+
+      for (const orderItem of order.items) {
+        for (const reservation of orderItem.reservations) {
+          if (reservation.releasedAt) {
+            continue;
+          }
+
+          const updatedInventory = await tx.inventory.updateMany({
+            where: {
+              id: reservation.inventoryId,
+              reservedQuantity: {
+                gte: reservation.quantity,
+              },
+            },
+            data: {
+              reservedQuantity: {
+                decrement: reservation.quantity,
+              },
+            },
+          });
+
+          if (updatedInventory.count !== 1) {
+            throw new Error("RELEASE_CONFLICT");
+          }
+
+          await tx.reservation.update({
+            where: {
+              id: reservation.id,
+            },
+            data: {
+              releasedAt: new Date(),
+            },
+          });
+
+          await tx.inventoryTransaction.create({
+            data: {
+              inventoryId: reservation.inventoryId,
+              type: "RELEASE",
+              quantity: reservation.quantity,
+              referenceId: order.orderNumber,
+              reason: `Reservation released for ${order.orderNumber}`,
+              createdById: req.user!.userId,
+            },
+          });
+        }
+      }
+
+      return tx.customerOrder.update({
+        where: {
+          id: orderId,
+        },
+        data: {
+          status: "CANCELLED",
+        },
+        include: {
+          customer: true,
+          items: {
+            include: {
+              item: true,
+              reservations: true,
+            },
+          },
+        },
+      });
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Order cancelled and reservations released",
+      data: result,
+    });
+  } catch (error) {
+    console.error("Cancel order error:", error);
+
+    if (error instanceof Error) {
+      if (error.message === "ORDER_NOT_FOUND") {
+        return res.status(404).json({
+          success: false,
+          message: "Order not found",
+        });
+      }
+
+      if (error.message === "INVALID_ORDER_STATUS") {
+        return res.status(409).json({
+          success: false,
+          message: "Only reserved orders can be cancelled",
+        });
+      }
+
+      if (error.message === "RELEASE_CONFLICT") {
+        return res.status(409).json({
+          success: false,
+          message: "Unable to release reservation",
+        });
+      }
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to cancel order",
+    });
+  }
+}
 
 export async function reserveOrder(
   req: Request,
@@ -389,6 +525,142 @@ export async function reserveOrder(
     return res.status(500).json({
       success: false,
       message: "Failed to reserve order",
+    });
+  }
+}
+export async function completeorder(
+  req: Request,
+  res: Response,
+) {
+  try {
+    const orderId = Number(req.params.id);
+
+    if (!Number.isInteger(orderId) || orderId <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid order ID",
+      });
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      const order = await tx.customerOrder.findUnique({
+        where: { id: orderId },
+        include: {
+          items: {
+            include: {
+              reservations: true,
+            },
+          },
+        },
+      });
+
+      if (!order) {
+        throw new Error("ORDER_NOT_FOUND");
+      }
+
+      if (order.status !== "RESERVED") {
+        throw new Error("INVALID_ORDER_STATUS");
+      }
+
+      for (const orderItem of order.items) {
+        for (const reservation of orderItem.reservations) {
+          if (reservation.releasedAt) {
+            throw new Error("INVALID_RESERVATION");
+          }
+
+          const updatedInventory = await tx.inventory.updateMany({
+            where: {
+              id: reservation.inventoryId,
+              reservedQuantity: {
+                gte: reservation.quantity,
+              },
+              physicalQuantity: {
+                gte: reservation.quantity,
+              },
+            },
+            data: {
+              physicalQuantity: {
+                decrement: reservation.quantity,
+              },
+              reservedQuantity: {
+                decrement: reservation.quantity,
+              },
+            },
+          });
+
+          if (updatedInventory.count !== 1) {
+            throw new Error("COMPLETION_CONFLICT");
+          }
+
+          await tx.inventoryTransaction.create({
+            data: {
+              inventoryId: reservation.inventoryId,
+              type: "SALE",
+              quantity: reservation.quantity,
+              referenceId: order.orderNumber,
+              reason: `Sale for ${order.orderNumber}`,
+              createdById: req.user!.userId,
+            },
+          });
+        }
+      }
+
+      return tx.customerOrder.update({
+        where: {
+          id: orderId,
+        },
+        data: {
+          status: "COMPLETED",
+        },
+        include: {
+          customer: true,
+          items: {
+            include: {
+              item: true,
+              reservations: true,
+            },
+          },
+        },
+      });
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Order completed successfully",
+      data: result,
+    });
+  } catch (error) {
+    console.error("Complete order error:", error);
+
+    if (error instanceof Error) {
+      if (error.message === "ORDER_NOT_FOUND") {
+        return res.status(404).json({
+          success: false,
+          message: "Order not found",
+        });
+      }
+
+      if (error.message === "INVALID_ORDER_STATUS") {
+        return res.status(409).json({
+          success: false,
+          message: "Only reserved orders can be completed",
+        });
+      }
+
+      if (
+        error.message === "INVALID_RESERVATION" ||
+        error.message === "COMPLETION_CONFLICT"
+      ) {
+        return res.status(409).json({
+          success: false,
+          message: "Unable to complete order",
+        });
+      }
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to complete order",
     });
   }
 }

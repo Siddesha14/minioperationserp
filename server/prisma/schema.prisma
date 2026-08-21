@@ -40,6 +40,7 @@ enum InventoryTransactionType {
   TRANSFER_IN
   RESERVATION
   RELEASE
+  SALE
 }
 
 model User {

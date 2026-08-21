@@ -129,6 +129,15 @@ export const createInventoryReceipt = async (
       quantity,
       reason,
     } = result.data;
+    if (
+  req.user.role !== "ADMIN" &&
+  req.user.assignedLocationId !== locationId
+) {
+  return res.status(403).json({
+    success: false,
+    message: "You can only modify inventory at your assigned location",
+  });
+}
 
     const inventory = await prisma.$transaction(async (tx) => {
       const [item, location, batch] = await Promise.all([
@@ -285,6 +294,12 @@ export const adjustInventory = async (
       if (!record) {
         throw new Error("INVENTORY_NOT_FOUND");
       }
+      if (
+  req.user!.role !== "ADMIN" &&
+  req.user!.assignedLocationId !== record.locationId
+) {
+  throw new Error("LOCATION_ACCESS_DENIED");
+}
 
       let updated;
 
@@ -341,13 +356,19 @@ export const adjustInventory = async (
     });
   } catch (error) {
     if (error instanceof Error) {
+        if (error.message === "LOCATION_ACCESS_DENIED") {
+  return res.status(403).json({
+    success: false,
+    message: "You can only modify inventory at your assigned location",
+  });
+}
       if (error.message === "INVENTORY_NOT_FOUND") {
         return res.status(404).json({
           success: false,
           message: "Inventory record not found",
         });
       }
-
+      
       if (
         error.message ===
         "INSUFFICIENT_AVAILABLE_STOCK"

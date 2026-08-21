@@ -323,6 +323,15 @@ export async function updateWorkOrderStatus(
         message: "Work order not found",
       });
     }
+    if (
+  req.user!.role !== "ADMIN" &&
+  req.user!.assignedLocationId !== existingWorkOrder.locationId
+) {
+  return res.status(403).json({
+    success: false,
+    message: "You can only modify work orders at your assigned location",
+  });
+}
 
     const allowedTransitions: Record<string, string[]> = {
       ASSIGNED: ["IN_PROGRESS"],

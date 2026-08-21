@@ -30,7 +30,15 @@ export async function createTransfer(req: Request, res: Response) {
     }
 
     const createdById = req.user!.userId;
-
+    if (
+  req.user!.role !== "ADMIN" &&
+  req.user!.assignedLocationId !== sourceLocationId
+) {
+  return res.status(403).json({
+    success: false,
+    message: "You can only create transfers from your assigned location",
+  });
+}
     const existingTransfer = await prisma.stockTransfer.findUnique({
       where: { transferNumber },
     });
@@ -147,9 +155,22 @@ export async function createTransfer(req: Request, res: Response) {
 export async function getTransfers(req: Request, res: Response) {
   try {
     const transfers = await prisma.stockTransfer.findMany({
-      orderBy: {
-        createdAt: "desc",
-      },
+  where:
+    req.user!.role === "ADMIN"
+      ? undefined
+      : {
+          OR: [
+            {
+              sourceLocationId: req.user!.assignedLocationId!,
+            },
+            {
+              destinationLocationId: req.user!.assignedLocationId!,
+            },
+          ],
+        },
+  orderBy: {
+    createdAt: "desc",
+  },
       include: {
         sourceLocation: true,
         destinationLocation: true,
@@ -253,6 +274,12 @@ export async function dispatchTransfer(
       if (!transfer) {
         throw new Error("TRANSFER_NOT_FOUND");
       }
+      if (
+  req.user!.role !== "ADMIN" &&
+  req.user!.assignedLocationId !== transfer.sourceLocationId
+) {
+  throw new Error("LOCATION_ACCESS_DENIED");
+}
 
       if (transfer.status !== "REQUESTED") {
         throw new Error("INVALID_DISPATCH_STATUS");
@@ -339,6 +366,12 @@ export async function dispatchTransfer(
     console.error("Dispatch transfer error:", error);
 
     if (error instanceof Error) {
+        if (error.message === "LOCATION_ACCESS_DENIED") {
+  return res.status(403).json({
+    success: false,
+    message: "You can only dispatch transfers from your assigned location",
+  });
+}
       if (error.message === "TRANSFER_NOT_FOUND") {
         return res.status(404).json({
           success: false,
@@ -389,8 +422,12 @@ export async function receiveTransfer(
 
       if (!transfer) {
         throw new Error("TRANSFER_NOT_FOUND");
-      }
-
+      }if (
+  req.user!.role !== "ADMIN" &&
+  req.user!.assignedLocationId !== transfer.destinationLocationId
+) {
+  throw new Error("LOCATION_ACCESS_DENIED");
+}
       if (transfer.status !== "DISPATCHED") {
         throw new Error("INVALID_RECEIVE_STATUS");
       }
@@ -469,7 +506,7 @@ export async function receiveTransfer(
     });
   } catch (error) {
     console.error("Receive transfer error:", error);
-
+    
     if (error instanceof Error) {
       if (error.message === "TRANSFER_NOT_FOUND") {
         return res.status(404).json({
@@ -484,7 +521,12 @@ export async function receiveTransfer(
           message: "Only dispatched transfers can be received",
         });
       }
-
+      if (error.message === "LOCATION_ACCESS_DENIED") {
+  return res.status(403).json({
+    success: false,
+    message: "You can only receive transfers at your assigned location",
+  });
+}
       if (error.message === "BATCH_NOT_FOUND") {
         return res.status(409).json({
           success: false,

@@ -60,15 +60,9 @@ export async function getDashboardSummary(
       }),
 
       prisma.inventory.findMany({
-        where: {
-          physicalQuantity: {
-            lt: 10,
-          },
-        },
         orderBy: {
-          physicalQuantity: "asc",
+          updatedAt: "desc",
         },
-        take: 10,
         include: {
           item: {
             select: {
@@ -228,6 +222,7 @@ export async function getDashboardSummary(
       inventory.physicalQuantity - inventory.reservedQuantity,
   }))
   .filter((inventory) => inventory.availableQuantity < 10)
+  .sort((a, b) => a.availableQuantity - b.availableQuantity)
   .slice(0, 10);
 
     return res.status(200).json({

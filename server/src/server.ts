@@ -3,12 +3,13 @@ import cors from "cors";
 import { env } from "./config/env.js";
 import authRoutes from "./auth/auth.routes.js";
 import inventoryRoutes from "./inventory/inventory.routes.js";
+import workOrderRoutes from "./workorders/workorder.routes.js";
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
-app.use("/api/inventory", inventoryRoutes);
+
 
 app.get("/api/health", (_req, res) => {
   res.status(200).json({
@@ -18,6 +19,8 @@ app.get("/api/health", (_req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api/inventory", inventoryRoutes);
+app.use("/api/work-orders", workOrderRoutes);
 
 app.use((_req, res) => {
   res.status(404).json({

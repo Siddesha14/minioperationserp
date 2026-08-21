@@ -216,16 +216,19 @@ export async function getDashboardSummary(
       }
     }
 
-    const formattedLowStock = lowStockInventory.map((inventory) => ({
-      id: inventory.id,
-      item: inventory.item,
-      location: inventory.location,
-      batch: inventory.batch,
-      physicalQuantity: inventory.physicalQuantity,
-      reservedQuantity: inventory.reservedQuantity,
-      availableQuantity:
-        inventory.physicalQuantity - inventory.reservedQuantity,
-    }));
+    const formattedLowStock = lowStockInventory
+  .map((inventory) => ({
+    id: inventory.id,
+    item: inventory.item,
+    location: inventory.location,
+    batch: inventory.batch,
+    physicalQuantity: inventory.physicalQuantity,
+    reservedQuantity: inventory.reservedQuantity,
+    availableQuantity:
+      inventory.physicalQuantity - inventory.reservedQuantity,
+  }))
+  .filter((inventory) => inventory.availableQuantity < 10)
+  .slice(0, 10);
 
     return res.status(200).json({
       success: true,

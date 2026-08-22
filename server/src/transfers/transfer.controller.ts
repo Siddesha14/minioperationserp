@@ -396,7 +396,6 @@ export async function dispatchTransfer(
     });
   }
 }
-
 export async function receiveTransfer(
   req: Request,
   res: Response,
@@ -411,12 +410,11 @@ export async function receiveTransfer(
       });
     }
 
-    const transfer =
-      await prisma.stockTransfer.findUnique({
-        where: {
-          id,
-        },
-      });
+    const transfer = await prisma.stockTransfer.findUnique({
+      where: {
+        id,
+      },
+    });
 
     if (!transfer) {
       return res.status(404).json({
@@ -433,8 +431,11 @@ export async function receiveTransfer(
       });
     }
 
-    const updatedTransfer =
-      await prisma.$transaction(async (tx) => {
+    const updatedTransfer = await prisma.$transaction(
+      async (tx) => {
+        // -----------------------------------------
+        // 1. Find source inventory
+        // -----------------------------------------
         const sourceInventory =
           await tx.inventory.findFirst({
             where: {
@@ -449,17 +450,23 @@ export async function receiveTransfer(
           );
         }
 
+        // -----------------------------------------
+        // 2. Check available source stock
+        // -----------------------------------------
         const availableQuantity =
           sourceInventory.physicalQuantity -
           sourceInventory.reservedQuantity;
 
         if (availableQuantity < transfer.quantity) {
           throw new Error(
-            "Insufficient available stock",
+            `Insufficient available stock. Available: ${availableQuantity}, Required: ${transfer.quantity}`,
           );
         }
 
-        const destinationInventory =
+        // -----------------------------------------
+        // 3. Find destination inventory
+        // -----------------------------------------
+        let destinationInventory =
           await tx.inventory.findFirst({
             where: {
               itemId: transfer.itemId,
@@ -468,12 +475,27 @@ export async function receiveTransfer(
             },
           });
 
+        // -----------------------------------------
+        // 4. Create destination inventory
+        //    if it doesn't exist
+        // -----------------------------------------
         if (!destinationInventory) {
-          throw new Error(
-            "Destination inventory not found",
-          );
+          destinationInventory =
+            await tx.inventory.create({
+              data: {
+                itemId: transfer.itemId,
+                locationId:
+                  transfer.destinationLocationId,
+                batchId: sourceInventory.batchId,
+                physicalQuantity: 0,
+                reservedQuantity: 0,
+              },
+            });
         }
 
+        // -----------------------------------------
+        // 5. Remove stock from source
+        // -----------------------------------------
         await tx.inventory.update({
           where: {
             id: sourceInventory.id,
@@ -485,6 +507,9 @@ export async function receiveTransfer(
           },
         });
 
+        // -----------------------------------------
+        // 6. Add stock to destination
+        // -----------------------------------------
         await tx.inventory.update({
           where: {
             id: destinationInventory.id,
@@ -496,6 +521,9 @@ export async function receiveTransfer(
           },
         });
 
+        // -----------------------------------------
+        // 7. Record TRANSFER_OUT
+        // -----------------------------------------
         await tx.inventoryTransaction.create({
           data: {
             inventoryId: sourceInventory.id,
@@ -509,6 +537,9 @@ export async function receiveTransfer(
           },
         });
 
+        // -----------------------------------------
+        // 8. Record TRANSFER_IN
+        // -----------------------------------------
         await tx.inventoryTransaction.create({
           data: {
             inventoryId:
@@ -523,6 +554,9 @@ export async function receiveTransfer(
           },
         });
 
+        // -----------------------------------------
+        // 9. Mark transfer as RECEIVED
+        // -----------------------------------------
         return tx.stockTransfer.update({
           where: {
             id,
@@ -544,7 +578,8 @@ export async function receiveTransfer(
             },
           },
         });
-      });
+      },
+    );
 
     return res.status(200).json({
       success: true,
@@ -552,7 +587,10 @@ export async function receiveTransfer(
       data: updatedTransfer,
     });
   } catch (error) {
-    console.error("Receive transfer error:", error);
+    console.error(
+      "Receive transfer error:",
+      error,
+    );
 
     const message =
       error instanceof Error

@@ -38,7 +38,6 @@ app.use((_req, res) => {
     message: "Route not found",
   });
 });
-
-app.listen(env.PORT, () => {
+app.listen(env.PORT, "0.0.0.0", () => {
   console.log(`Mini Operations ERP API running on port ${env.PORT}`);
 });

@@ -229,8 +229,7 @@ useEffect(() => {
         locationId: Number(locationId),
         batchId: Number(batchId),
         quantity: parsedQuantity,
-        reason:
-          reason.trim() || undefined,
+        reason: reason.trim() 
       });
 
       setReceiveSuccess(

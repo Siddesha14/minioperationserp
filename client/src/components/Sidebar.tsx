@@ -37,6 +37,11 @@ const menuItems = [
     path: "/transfers",
     roles: ["ADMIN", "OPERATIONS"],
   },
+  {
+  label: "Items",
+  path: "/items",
+  roles: ["ADMIN", "OPERATIONS"],
+},
 ];
 
 export default function Sidebar({ role }: SidebarProps) {

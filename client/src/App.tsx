@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import AppLayout from "./layouts/AppLayout";
 import Login from "./pages/auth/Login";
 import Inventory from "./pages/inventory/Inventory";
+import Items from "./pages/items/Items";
 import Orders from "./pages/orders/Orders";
 import WorkOrders from "./pages/workorders/WorkOrders";
 import Transfers from "./pages/transfers/Transfers";
@@ -277,11 +278,11 @@ export default function App() {
 
       <Route element={<AppLayout />}>
         <Route path="/dashboard" element={<Dashboard />} />
+<Route path="/inventory" element={<Inventory />} />
 
-        <Route path="/inventory" element={<Inventory />} />
-        
-        <Route path="/customers" element={<Customers />} />
+<Route path="/items" element={<Items />} />
 
+<Route path="/customers" element={<Customers />} />
         <Route path="/orders" element={<Orders />} />
 
         <Route

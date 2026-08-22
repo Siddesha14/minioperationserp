@@ -52,7 +52,7 @@ export interface CreateInventoryReceiptData {
   locationId: number;
   batchId: number;
   quantity: number;
-  reason?: string;
+  reason : string;
 }
 
 export interface AdjustInventoryData {

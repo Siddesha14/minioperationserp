@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useAuth } from "../../context/AuthContext";
 import {
   getCustomers,
   type Customer,
@@ -13,9 +14,12 @@ import {
 } from "../../api/orders";
 
 export default function Orders() {
+  const { user } = useAuth();
+
   const [orders, setOrders] = useState<Order[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
-const [customersLoading, setCustomersLoading] = useState(true);
+  const [customersLoading, setCustomersLoading] = useState(true);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -30,25 +34,27 @@ const [customersLoading, setCustomersLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<number | null>(
     null,
   );
+
   async function loadCustomers() {
-  try {
-    setCustomersLoading(true);
+    try {
+      setCustomersLoading(true);
 
-    const result = await getCustomers();
+      const result = await getCustomers();
 
-    setCustomers(result.data);
-  } catch (error) {
-    console.error("Customers loading error:", error);
+      setCustomers(result.data);
+    } catch (error) {
+      console.error("Customers loading error:", error);
 
-    setError(
-      error instanceof Error
-        ? error.message
-        : "Failed to load customers",
-    );
-  } finally {
-    setCustomersLoading(false);
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Failed to load customers",
+      );
+    } finally {
+      setCustomersLoading(false);
+    }
   }
-}
+
   async function loadOrders() {
     try {
       setLoading(true);
@@ -72,8 +78,13 @@ const [customersLoading, setCustomersLoading] = useState(true);
 
   useEffect(() => {
   loadOrders();
-  loadCustomers();
-}, []);
+
+  // Only SALES and ADMIN need customer data
+  // because they can create orders.
+  if (user?.role === "SALES" || user?.role === "ADMIN") {
+    loadCustomers();
+  }
+}, [user]);
 
   async function handleCreateOrder(
     event: React.FormEvent,
@@ -179,6 +190,22 @@ const [customersLoading, setCustomersLoading] = useState(true);
     }
   }
 
+  const canCreateOrders =
+    user?.role === "SALES" ||
+    user?.role === "ADMIN";
+
+  const canReserveOrders =
+    user?.role === "SALES" ||
+    user?.role === "ADMIN";
+
+  const canCancelOrders =
+    user?.role === "SALES" ||
+    user?.role === "ADMIN";
+
+  const canCompleteOrders =
+    user?.role === "OPERATIONS" ||
+    user?.role === "ADMIN";
+
   return (
     <div className="space-y-6">
 
@@ -204,18 +231,19 @@ const [customersLoading, setCustomersLoading] = useState(true);
             Refresh
           </button>
 
-          <button
-            onClick={() => {
-              setError("");
-              setShowCreateModal(true);
-            }}
-            className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-          >
-            + Create Order
-          </button>
+          {canCreateOrders && (
+            <button
+              onClick={() => {
+                setError("");
+                setShowCreateModal(true);
+              }}
+              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+            >
+              + Create Order
+            </button>
+          )}
 
         </div>
-
       </div>
 
       {/* Summary */}
@@ -302,12 +330,16 @@ const [customersLoading, setCustomersLoading] = useState(true);
               No orders found.
             </p>
 
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="mt-4 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white"
-            >
-              Create your first order
-            </button>
+            {canCreateOrders && (
+              <button
+                onClick={() =>
+                  setShowCreateModal(true)
+                }
+                className="mt-4 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white"
+              >
+                Create your first order
+              </button>
+            )}
 
           </div>
         ) : (
@@ -429,75 +461,85 @@ const [customersLoading, setCustomersLoading] = useState(true);
 
                       <div className="flex justify-end gap-2">
 
+                        {/* DRAFT ACTIONS */}
                         {order.status === "DRAFT" && (
                           <>
-                            <button
-                              disabled={
-                                actionLoading === order.id
-                              }
-                              onClick={() =>
-                                handleAction(
-                                  "reserve",
-                                  order.id,
-                                )
-                              }
-                              className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-                            >
-                              {actionLoading === order.id
-                                ? "..."
-                                : "Reserve"}
-                            </button>
+                            {canReserveOrders && (
+                              <button
+                                disabled={
+                                  actionLoading === order.id
+                                }
+                                onClick={() =>
+                                  handleAction(
+                                    "reserve",
+                                    order.id,
+                                  )
+                                }
+                                className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                              >
+                                {actionLoading === order.id
+                                  ? "..."
+                                  : "Reserve"}
+                              </button>
+                            )}
 
-                            <button
-                              disabled={
-                                actionLoading === order.id
-                              }
-                              onClick={() =>
-                                handleAction(
-                                  "cancel",
-                                  order.id,
-                                )
-                              }
-                              className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
-                            >
-                              Cancel
-                            </button>
+                            {canCancelOrders && (
+                              <button
+                                disabled={
+                                  actionLoading === order.id
+                                }
+                                onClick={() =>
+                                  handleAction(
+                                    "cancel",
+                                    order.id,
+                                  )
+                                }
+                                className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
+                              >
+                                Cancel
+                              </button>
+                            )}
                           </>
                         )}
 
+                        {/* RESERVED ACTIONS */}
                         {order.status === "RESERVED" && (
                           <>
-                            <button
-                              disabled={
-                                actionLoading === order.id
-                              }
-                              onClick={() =>
-                                handleAction(
-                                  "complete",
-                                  order.id,
-                                )
-                              }
-                              className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
-                            >
-                              {actionLoading === order.id
-                                ? "..."
-                                : "Complete"}
-                            </button>
+                            {canCompleteOrders && (
+                              <button
+                                disabled={
+                                  actionLoading === order.id
+                                }
+                                onClick={() =>
+                                  handleAction(
+                                    "complete",
+                                    order.id,
+                                  )
+                                }
+                                className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+                              >
+                                {actionLoading === order.id
+                                  ? "..."
+                                  : "Complete"}
+                              </button>
+                            )}
 
-                            <button
-                              disabled={
-                                actionLoading === order.id
-                              }
-                              onClick={() =>
-                                handleAction(
-                                  "cancel",
-                                  order.id,
-                                )
-                              }
-                              className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
-                            >
-                              Cancel
-                            </button>
+                            {canCancelOrders && (
+                              <button
+                                disabled={
+                                  actionLoading === order.id
+                                }
+                                onClick={() =>
+                                  handleAction(
+                                    "cancel",
+                                    order.id,
+                                  )
+                                }
+                                className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
+                              >
+                                Cancel
+                              </button>
+                            )}
                           </>
                         )}
 
@@ -526,7 +568,7 @@ const [customersLoading, setCustomersLoading] = useState(true);
       </section>
 
       {/* Create Order Modal */}
-      {showCreateModal && (
+      {showCreateModal && canCreateOrders && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
 
           <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl">
@@ -573,38 +615,39 @@ const [customersLoading, setCustomersLoading] = useState(true);
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-slate-500"
                 />
               </div>
+
               <div>
-  <label className="mb-1 block text-sm font-medium text-slate-700">
-    Customer
-  </label>
+                <label className="mb-1 block text-sm font-medium text-slate-700">
+                  Customer
+                </label>
 
-  <select
-    value={customerId}
-    onChange={(event) =>
-      setCustomerId(event.target.value)
-    }
-    disabled={customersLoading}
-    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:border-slate-500"
-  >
-    <option value="">
-      {customersLoading
-        ? "Loading customers..."
-        : "Select a customer"}
-    </option>
+                <select
+                  value={customerId}
+                  onChange={(event) =>
+                    setCustomerId(event.target.value)
+                  }
+                  disabled={customersLoading}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:border-slate-500"
+                >
+                  <option value="">
+                    {customersLoading
+                      ? "Loading customers..."
+                      : "Select a customer"}
+                  </option>
 
-    {customers.map((customer) => (
-      <option
-        key={customer.id}
-        value={customer.id}
-      >
-        {customer.name}
-        {customer.email
-          ? ` — ${customer.email}`
-          : ""}
-      </option>
-    ))}
-  </select>
-</div>
+                  {customers.map((customer) => (
+                    <option
+                      key={customer.id}
+                      value={customer.id}
+                    >
+                      {customer.name}
+                      {customer.email
+                        ? ` — ${customer.email}`
+                        : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700">

@@ -6,122 +6,114 @@ export async function getDashboardSummary(
   res: Response,
 ) {
   try {
-    const [
-      totalItems,
-      totalCustomers,
-      totalInventoryRecords,
-      inventoryTotals,
-      orderCounts,
-      workOrderCounts,
-      transferCounts,
-      transactionCounts,
-      lowStockInventory,
-      recentTransactions,
-    ] = await Promise.all([
-      prisma.item.count(),
+    // Sequential instead of Promise.all — the local Postgres instance
+    // cannot reliably sustain many concurrent queries (connections get
+    // dropped under load: P1017 "Server has closed the connection").
+    // Running these one at a time is slower but avoids that failure.
 
-      prisma.customer.count(),
+    const totalItems = await prisma.item.count();
 
-      prisma.inventory.count(),
+    const totalCustomers = await prisma.customer.count();
 
-      prisma.inventory.aggregate({
-        _sum: {
-          physicalQuantity: true,
-          reservedQuantity: true,
-        },
-      }),
+    const totalInventoryRecords = await prisma.inventory.count();
 
-      prisma.customerOrder.groupBy({
-        by: ["status"],
-        _count: {
-          _all: true,
-        },
-      }),
+    const inventoryTotals = await prisma.inventory.aggregate({
+      _sum: {
+        physicalQuantity: true,
+        reservedQuantity: true,
+      },
+    });
 
-      prisma.workOrder.groupBy({
-        by: ["status"],
-        _count: {
-          _all: true,
-        },
-      }),
+    const orderCounts = await prisma.customerOrder.groupBy({
+      by: ["status"],
+      _count: {
+        _all: true,
+      },
+    });
 
-      prisma.stockTransfer.groupBy({
-        by: ["status"],
-        _count: {
-          _all: true,
-        },
-      }),
+    const workOrderCounts = await prisma.workOrder.groupBy({
+      by: ["status"],
+      _count: {
+        _all: true,
+      },
+    });
 
-      prisma.inventoryTransaction.groupBy({
-        by: ["type"],
-        _count: {
-          _all: true,
-        },
-      }),
+    const transferCounts = await prisma.stockTransfer.groupBy({
+      by: ["status"],
+      _count: {
+        _all: true,
+      },
+    });
 
-      prisma.inventory.findMany({
-        orderBy: {
-          updatedAt: "desc",
-        },
-        include: {
-          item: {
-            select: {
-              id: true,
-              sku: true,
-              name: true,
-            },
-          },
-          location: {
-            select: {
-              id: true,
-              name: true,
-              code: true,
-            },
-          },
-          batch: {
-            select: {
-              id: true,
-              batchNumber: true,
-            },
+    const transactionCounts = await prisma.inventoryTransaction.groupBy({
+      by: ["type"],
+      _count: {
+        _all: true,
+      },
+    });
+
+    const lowStockInventory = await prisma.inventory.findMany({
+      orderBy: {
+        updatedAt: "desc",
+      },
+      include: {
+        item: {
+          select: {
+            id: true,
+            sku: true,
+            name: true,
           },
         },
-      }),
-
-      prisma.inventoryTransaction.findMany({
-        orderBy: {
-          createdAt: "desc",
+        location: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
         },
-        take: 10,
-        include: {
-          inventory: {
-            include: {
-              item: {
-                select: {
-                  id: true,
-                  sku: true,
-                  name: true,
-                },
+        batch: {
+          select: {
+            id: true,
+            batchNumber: true,
+          },
+        },
+      },
+    });
+
+    const recentTransactions = await prisma.inventoryTransaction.findMany({
+      orderBy: {
+        createdAt: "desc",
+      },
+      take: 10,
+      include: {
+        inventory: {
+          include: {
+            item: {
+              select: {
+                id: true,
+                sku: true,
+                name: true,
               },
-              location: {
-                select: {
-                  id: true,
-                  name: true,
-                  code: true,
-                },
+            },
+            location: {
+              select: {
+                id: true,
+                name: true,
+                code: true,
               },
             },
           },
-          createdBy: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              role: true,
-            },
+        },
+        createdBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
           },
         },
-      }),
-    ]);
+      },
+    });
 
     const physicalQuantity =
       inventoryTotals._sum.physicalQuantity ?? 0;
@@ -211,19 +203,19 @@ export async function getDashboardSummary(
     }
 
     const formattedLowStock = lowStockInventory
-  .map((inventory) => ({
-    id: inventory.id,
-    item: inventory.item,
-    location: inventory.location,
-    batch: inventory.batch,
-    physicalQuantity: inventory.physicalQuantity,
-    reservedQuantity: inventory.reservedQuantity,
-    availableQuantity:
-      inventory.physicalQuantity - inventory.reservedQuantity,
-  }))
-  .filter((inventory) => inventory.availableQuantity < 10)
-  .sort((a, b) => a.availableQuantity - b.availableQuantity)
-  .slice(0, 10);
+      .map((inventory) => ({
+        id: inventory.id,
+        item: inventory.item,
+        location: inventory.location,
+        batch: inventory.batch,
+        physicalQuantity: inventory.physicalQuantity,
+        reservedQuantity: inventory.reservedQuantity,
+        availableQuantity:
+          inventory.physicalQuantity - inventory.reservedQuantity,
+      }))
+      .filter((inventory) => inventory.availableQuantity < 10)
+      .sort((a, b) => a.availableQuantity - b.availableQuantity)
+      .slice(0, 10);
 
     return res.status(200).json({
       success: true,

@@ -25,7 +25,7 @@ const menuItems = [
   {
     label: "Orders",
     path: "/orders",
-    roles: ["ADMIN", "SALES"],
+    roles: ["ADMIN", "SALES","OPERATIONS"],
   },
   {
     label: "Work Orders",

@@ -7,6 +7,8 @@ import Inventory from "./pages/inventory/Inventory";
 import Orders from "./pages/orders/Orders";
 import WorkOrders from "./pages/workorders/WorkOrders";
 import Transfers from "./pages/transfers/Transfers";
+import Customers from "./pages/customers/Customers";
+
 
 import { getDashboardSummary } from "./api/dashboard";
 import type { DashboardSummary } from "./api/dashboard";
@@ -277,6 +279,8 @@ export default function App() {
         <Route path="/dashboard" element={<Dashboard />} />
 
         <Route path="/inventory" element={<Inventory />} />
+        
+        <Route path="/customers" element={<Customers />} />
 
         <Route path="/orders" element={<Orders />} />
 

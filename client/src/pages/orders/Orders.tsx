@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
 import {
+  getCustomers,
+  type Customer,
+} from "../../api/customers";
+import {
   getOrders,
   createOrder,
   reserveOrder,
@@ -10,6 +14,8 @@ import {
 
 export default function Orders() {
   const [orders, setOrders] = useState<Order[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+const [customersLoading, setCustomersLoading] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -24,7 +30,25 @@ export default function Orders() {
   const [actionLoading, setActionLoading] = useState<number | null>(
     null,
   );
+  async function loadCustomers() {
+  try {
+    setCustomersLoading(true);
 
+    const result = await getCustomers();
+
+    setCustomers(result.data);
+  } catch (error) {
+    console.error("Customers loading error:", error);
+
+    setError(
+      error instanceof Error
+        ? error.message
+        : "Failed to load customers",
+    );
+  } finally {
+    setCustomersLoading(false);
+  }
+}
   async function loadOrders() {
     try {
       setLoading(true);
@@ -47,8 +71,9 @@ export default function Orders() {
   }
 
   useEffect(() => {
-    loadOrders();
-  }, []);
+  loadOrders();
+  loadCustomers();
+}, []);
 
   async function handleCreateOrder(
     event: React.FormEvent,
@@ -548,27 +573,38 @@ export default function Orders() {
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-slate-500"
                 />
               </div>
-
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">
-                  Customer ID
-                </label>
+  <label className="mb-1 block text-sm font-medium text-slate-700">
+    Customer
+  </label>
 
-                <input
-                  type="number"
-                  min="1"
-                  value={customerId}
-                  onChange={(event) =>
-                    setCustomerId(event.target.value)
-                  }
-                  placeholder="1"
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-slate-500"
-                />
+  <select
+    value={customerId}
+    onChange={(event) =>
+      setCustomerId(event.target.value)
+    }
+    disabled={customersLoading}
+    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:border-slate-500"
+  >
+    <option value="">
+      {customersLoading
+        ? "Loading customers..."
+        : "Select a customer"}
+    </option>
 
-                <p className="mt-1 text-xs text-slate-400">
-                  Enter the existing customer ID.
-                </p>
-              </div>
+    {customers.map((customer) => (
+      <option
+        key={customer.id}
+        value={customer.id}
+      >
+        {customer.name}
+        {customer.email
+          ? ` — ${customer.email}`
+          : ""}
+      </option>
+    ))}
+  </select>
+</div>
 
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700">

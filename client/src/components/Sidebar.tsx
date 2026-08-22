@@ -18,6 +18,11 @@ const menuItems = [
     roles: ["ADMIN", "OPERATIONS"],
   },
   {
+    label: "Customers",
+    path: "/customers",
+    roles: ["ADMIN", "SALES"],
+  },
+  {
     label: "Orders",
     path: "/orders",
     roles: ["ADMIN", "SALES"],
